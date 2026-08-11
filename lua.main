@@ -1,0 +1,143 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+local tool
+for _, v in ipairs(player:GetDescendants()) do
+    if v.Name == "SyncAPI" then
+        tool = v.Parent
+        break
+    end
+end
+
+if not tool then
+    for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
+        if v.Name == "SyncAPI" then
+            tool = v.Parent
+            break
+        end
+    end
+end
+
+if not tool or not tool:FindFirstChild("SyncAPI") then
+    warn("F3X SyncAPI bulunamadı!")
+    return
+end
+
+local remote = tool.SyncAPI.ServerEndpoint
+
+local function _(args)
+    pcall(function()
+        remote:InvokeServer(unpack(args))
+    end)
+end
+
+local function CreatePart(cf, parent, types)
+    _( { "CreatePart", types or "Normal", cf, parent } )
+end
+
+local function DestroyPart(part)
+    _( { "Remove", { [1] = part } } )
+end
+
+local function SetAnchor(part, boolean)
+    _( { "SyncAnchor", { [1] = { ["Part"] = part, ["Anchored"] = boolean } } } )
+end
+
+local function AddMesh(part)
+    _( { "CreateMeshes", { [1] = { ["Part"] = part } } } )
+end
+
+local function SetMesh(part, meshid)
+    _( { "SyncMesh", { [1] = { ["Part"] = part, ["MeshId"] = "rbxassetid://" .. meshid } } } )
+end
+
+local function SetTexture(part, texid)
+    _( { "SyncMesh", { [1] = { ["Part"] = part, ["TextureId"] = texid } } } )
+end
+
+local function MeshResize(part, size)
+    _( { "SyncMesh", { [1] = { ["Part"] = part, ["Scale"] = size } } } )
+end
+
+local function SetTransparency(part, value)
+    _( { "SyncTransparency", { [1] = { ["Part"] = part, ["Transparency"] = value } } } )
+end
+
+local skyPart
+local skyLoop
+local frameTime = 1 / 10
+local lastUpdate = 0
+local images = {
+    "http://www.roblox.com/asset/?id=169585459",
+    "http://www.roblox.com/asset/?id=169585475",
+    "http://www.roblox.com/asset/?id=169585485",
+    "http://www.roblox.com/asset/?id=169585502",
+    "http://www.roblox.com/asset/?id=169585515",
+    "http://www.roblox.com/asset/?id=169585502",
+    "http://www.roblox.com/asset/?id=169585485",
+    "http://www.roblox.com/asset/?id=169585475",
+}
+
+local function CreateSky()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local cf = hrp.CFrame
+    CreatePart(CFrame.new(cf.Position + Vector3.new(0, 6, 0)), workspace)
+    
+    task.wait(0.2)
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and v.CFrame.Position == cf.Position + Vector3.new(0, 6, 0) then
+            skyPart = v
+            SetAnchor(skyPart, true)
+            AddMesh(skyPart)
+            SetMesh(skyPart, "111891702759441")
+            MeshResize(skyPart, Vector3.new(8000, 8000, 8000))
+            SetTransparency(skyPart, 1)
+            
+            local index = 1
+            skyLoop = RunService.Heartbeat:Connect(function(deltaTime)
+                lastUpdate = lastUpdate + deltaTime
+                if lastUpdate >= frameTime then
+                    lastUpdate = 0
+                    if not skyPart or not skyPart.Parent then
+                        skyLoop:Disconnect()
+                        return
+                    end
+                    SetTransparency(skyPart, 0)
+                    SetTexture(skyPart, images[index])
+                    index = index % #images + 1
+                end
+            end)
+        end
+    end
+end
+
+local function ResetSky()
+    if skyPart then
+        DestroyPart(skyPart)
+        skyPart = nil
+    end
+    if skyLoop then
+        skyLoop:Disconnect()
+        skyLoop = nil
+    end
+end
+
+player.CharacterAdded:Connect(function(newChar)
+    char = newChar
+    ResetSky()
+    task.wait(1)
+    CreateSky()
+end)
+
+if char and char:FindFirstChild("Humanoid") then
+    char:WaitForChild("Humanoid").Died:Connect(function()
+        ResetSky()
+    end)
+end
+
+CreateSky()
